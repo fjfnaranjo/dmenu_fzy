@@ -1,10 +1,14 @@
 # C
-/*.o
+*.o
 
 # dmenu
 /config.h
 /dmenu
 /stest
+
+# fzy
+/fzy/config.h
+/fzy/fzy
 
 # IDEs
 /.cproject
