@@ -55,9 +55,6 @@ static Clr *scheme[SchemeLast];
 
 #include "config.h"
 
-static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
-static char *(*fstrstr)(const char *, const char *) = strstr;
-
 static void
 appenditem(struct item *item, struct item **list, struct item **last)
 {
@@ -239,14 +236,14 @@ match(void)
 	textsize = strlen(text) + 1;
 	for (item = items; item && item->text; item++) {
 		for (i = 0; i < tokc; i++)
-			if (!fstrstr(item->text, tokv[i]))
+			if (!cistrstr(item->text, tokv[i]))
 				break;
 		if (i != tokc) /* not all tokens match */
 			continue;
 		/* exact matches go first, then prefixes, then substrings */
-		if (!tokc || !fstrncmp(text, item->text, textsize))
+		if (!tokc || !strncasecmp(text, item->text, textsize))
 			appenditem(item, &matches, &matchend);
-		else if (!fstrncmp(tokv[0], item->text, len))
+		else if (!strncasecmp(tokv[0], item->text, len))
 			appenditem(item, &lprefix, &prefixend);
 		else
 			appenditem(item, &lsubstr, &substrend);
@@ -727,10 +724,7 @@ main(int argc, char *argv[])
 			topbar = 0;
 		else if (!strcmp(argv[i], "-f"))   /* grabs keyboard before reading stdin */
 			fast = 1;
-		else if (!strcmp(argv[i], "-i")) { /* case-insensitive item matching */
-			fstrncmp = strncasecmp;
-			fstrstr = cistrstr;
-		} else if (i + 1 == argc)
+		else if (i + 1 == argc)
 			usage();
 		/* these options take one argument */
 		else if (!strcmp(argv[i], "-l"))   /* number of lines in vertical list */
