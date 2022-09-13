@@ -4,7 +4,6 @@
 #include <stdio.h>
 
 #include "match.h"
-#include "options.h"
 
 struct scored_result {
 	score_t score;
@@ -27,7 +26,7 @@ typedef struct {
 	unsigned int worker_count;
 } choices_t;
 
-void choices_init(choices_t *c, options_t *options);
+void choices_init(choices_t *c, const unsigned int workers);
 void choices_fread(choices_t *c, FILE *file);
 void choices_destroy(choices_t *c);
 void choices_add(choices_t *c, const char *choice);

@@ -1,7 +1,11 @@
 #ifndef BONUS_H
 #define BONUS_H BONUS_H
 
-#include "config.h"
+#define SCORE_MATCH_CONSECUTIVE 1.0
+#define SCORE_MATCH_SLASH 0.9
+#define SCORE_MATCH_WORD 0.8
+#define SCORE_MATCH_CAPITAL 0.7
+#define SCORE_MATCH_DOT 0.6
 
 #define ASSIGN_LOWER(v) \
 	['a'] = (v), \

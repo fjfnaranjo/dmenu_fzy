@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "options.h"
 #include "choices.h"
 #include "match.h"
 
@@ -97,7 +96,7 @@ static void choices_reset_search(choices_t *c) {
 	c->results = NULL;
 }
 
-void choices_init(choices_t *c, options_t *options) {
+void choices_init(choices_t *c, unsigned int workers) {
 	c->strings = NULL;
 	c->results = NULL;
 
@@ -107,8 +106,8 @@ void choices_init(choices_t *c, options_t *options) {
 	c->capacity = c->size = 0;
 	choices_resize(c, INITIAL_CHOICE_CAPACITY);
 
-	if (options->workers) {
-		c->worker_count = options->workers;
+	if (workers) {
+		c->worker_count = workers;
 	} else {
 		c->worker_count = (int)sysconf(_SC_NPROCESSORS_ONLN);
 	}
@@ -231,7 +230,7 @@ static void *choices_search_worker(void *data) {
 		for(size_t i = start; i < end; i++) {
 			if (has_match(job->search, c->strings[i])) {
 				result->list[result->size].str = c->strings[i];
-				result->list[result->size].score = match(job->search, c->strings[i]);
+				result->list[result->size].score = fzy_match(job->search, c->strings[i]);
 				result->size++;
 			}
 		}

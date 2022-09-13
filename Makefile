@@ -26,7 +26,7 @@ config.h:
 $(OBJ): arg.h config.h config.mk drw.h
 
 dmenu: dmenu.o drw.o util.o fzy
-	$(CC) -o $@ dmenu.o drw.o util.o $(LDFLAGS)
+	$(CC) -o $@ dmenu.o drw.o util.o fzy/choices.o fzy/match.o $(LDFLAGS)
 
 stest: stest.o
 	$(CC) -o $@ stest.o $(LDFLAGS)

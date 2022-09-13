@@ -19,6 +19,9 @@
 #include "drw.h"
 #include "util.h"
 
+#include "fzy/match.h"
+#include "fzy/choices.h"
+
 /* macros */
 #define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
                              * MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
@@ -52,6 +55,8 @@ static XIC xic;
 
 static Drw *drw;
 static Clr *scheme[SchemeLast];
+
+choices_t choices;
 
 #include "config.h"
 
@@ -97,6 +102,9 @@ cleanup(void)
 	drw_free(drw);
 	XSync(dpy, False);
 	XCloseDisplay(dpy);
+
+	choices_destroy(&choices);
+
 }
 
 static char *
@@ -773,11 +781,15 @@ main(int argc, char *argv[])
 		die("pledge");
 #endif
 
+	choices_init(&choices, workers);
+
 	if (fast && !isatty(0)) {
 		grabkeyboard();
 		readstdin();
+		choices_fread(&choices, stdin);
 	} else {
 		readstdin();
+		choices_fread(&choices, stdin);
 		grabkeyboard();
 	}
 	setup();

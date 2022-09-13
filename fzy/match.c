@@ -8,8 +8,6 @@
 #include "match.h"
 #include "bonus.h"
 
-#include "config.h"
-
 char *strcasechr(const char *s, char c) {
 	const char accept[3] = {c, toupper(c), 0};
 	return strpbrk(s, accept);
@@ -167,6 +165,6 @@ score_t match_positions(const char *needle, const char *haystack, size_t *positi
 	return M[n - 1][m - 1];
 }
 
-score_t match(const char *needle, const char *haystack) {
+score_t fzy_match(const char *needle, const char *haystack) {
 	return match_positions(needle, haystack, NULL);
 }
