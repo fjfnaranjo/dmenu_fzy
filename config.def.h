@@ -21,3 +21,6 @@ static unsigned int lines      = 0;
  * for example: " /?\"&[]"
  */
 static const char worddelimiters[] = " ";
+
+static int show_scores = 0;                 /* -s  option; if 1, shows the score of each opt */
+static int workers = 0;                     /* -j  option; NUM of workers or 0 for CPU count */

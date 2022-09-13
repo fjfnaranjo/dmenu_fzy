@@ -745,6 +745,10 @@ main(int argc, char *argv[])
 			colors[SchemeSel][ColFg] = argv[++i];
 		else if (!strcmp(argv[i], "-w"))   /* embedding window id */
 			embed = argv[++i];
+		else if (!strcmp(argv[i], "-s"))   /* show match scores */
+			show_scores = 1;
+		else if (!strcmp(argv[i], "-j"))   /* number of workers */
+			workers = atoi(argv[++i]);
 		else
 			usage();
 
