@@ -55,6 +55,7 @@ static XIC xic;
 
 static Drw *drw;
 static Clr *scheme[SchemeLast];
+static Clr *highlight_scheme[SchemeLast];
 
 choices_t choices;
 
@@ -99,6 +100,8 @@ cleanup(void)
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
 	for (i = 0; i < SchemeLast; i++)
 		free(scheme[i]);
+	for (i = 0; i < SchemeLast; i++)
+		free(highlight_scheme[i]);
 	drw_free(drw);
 	XSync(dpy, False);
 	XCloseDisplay(dpy);
@@ -128,6 +131,8 @@ cistrstr(const char *h, const char *n)
 static int
 drawitem(struct item *item, int x, int y, int w)
 {
+	int drw_return;
+
 	if (item == sel)
 		drw_setscheme(drw, scheme[SchemeSel]);
 	else if (item->out)
@@ -135,7 +140,19 @@ drawitem(struct item *item, int x, int y, int w)
 	else
 		drw_setscheme(drw, scheme[SchemeNorm]);
 
-	return drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
+	drw_return = drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
+
+	if (item == sel)
+		drw_setscheme(drw, highlight_scheme[SchemeSel]);
+	else if (item->out)
+		drw_setscheme(drw, highlight_scheme[SchemeOut]);
+	else
+		drw_setscheme(drw, highlight_scheme[SchemeNorm]);
+
+	// TODO: overwrite instead of hl for now...
+	drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
+
+	return drw_return;
 }
 
 static void
@@ -626,6 +643,12 @@ setup(void)
 	/* init appearance */
 	for (j = 0; j < SchemeLast; j++)
 		scheme[j] = drw_scm_create(drw, colors[j], 2);
+	for (j = 0; j < SchemeLast; j++) {
+		const char *highlight[2];
+		highlight[0] = highlight_colors[j];
+		highlight[1] = colors[j][1];
+		highlight_scheme[j] = drw_scm_create(drw, highlight, 2);
+	}
 
 	clip = XInternAtom(dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
@@ -747,10 +770,14 @@ main(int argc, char *argv[])
 			colors[SchemeNorm][ColBg] = argv[++i];
 		else if (!strcmp(argv[i], "-nf"))  /* normal foreground color */
 			colors[SchemeNorm][ColFg] = argv[++i];
+		else if (!strcmp(argv[i], "-nfh"))  /* normal foreground highlight color */
+			highlight_colors[SchemeNorm] = argv[++i];
 		else if (!strcmp(argv[i], "-sb"))  /* selected background color */
 			colors[SchemeSel][ColBg] = argv[++i];
 		else if (!strcmp(argv[i], "-sf"))  /* selected foreground color */
 			colors[SchemeSel][ColFg] = argv[++i];
+		else if (!strcmp(argv[i], "-sfh"))  /* selected foreground highlight color */
+			highlight_colors[SchemeSel] = argv[++i];
 		else if (!strcmp(argv[i], "-w"))   /* embedding window id */
 			embed = argv[++i];
 		else if (!strcmp(argv[i], "-s"))   /* show match scores */

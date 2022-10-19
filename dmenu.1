@@ -16,9 +16,13 @@ dmenu \- dynamic menu
 .IR color ]
 .RB [ \-nf
 .IR color ]
+.RB [ \-nfh
+.IR color ]
 .RB [ \-sb
 .IR color ]
 .RB [ \-sf
+.IR color ]
+.RB [ \-sfh
 .IR color ]
 .RB [ \-w
 .IR windowid ]
@@ -68,11 +72,17 @@ and X color names are supported.
 .BI \-nf " color"
 defines the normal foreground color.
 .TP
+.BI \-nfh " color"
+defines the normal foreground highlight color.
+.TP
 .BI \-sb " color"
 defines the selected background color.
 .TP
 .BI \-sf " color"
 defines the selected foreground color.
+.TP
+.BI \-sfh " color"
+defines the selected foreground highlight color.
 .TP
 .B \-v
 prints version information to stdout, then exits.
