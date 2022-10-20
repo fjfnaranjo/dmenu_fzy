@@ -29,12 +29,11 @@
 #define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
 
 /* enums */
-enum { SchemeNorm, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
+enum { SchemeNorm, SchemeSel, SchemeNormHl, SchemeSelHl, SchemeLast }; /* color schemes */
 
 struct item {
 	char *text;
 	struct item *left, *right;
-	int out;
 };
 
 static char text[BUFSIZ] = "";
@@ -55,7 +54,6 @@ static XIC xic;
 
 static Drw *drw;
 static Clr *scheme[SchemeLast];
-static Clr *highlight_scheme[SchemeLast];
 
 choices_t choices;
 
@@ -100,8 +98,6 @@ cleanup(void)
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
 	for (i = 0; i < SchemeLast; i++)
 		free(scheme[i]);
-	for (i = 0; i < SchemeLast; i++)
-		free(highlight_scheme[i]);
 	drw_free(drw);
 	XSync(dpy, False);
 	XCloseDisplay(dpy);
@@ -135,19 +131,15 @@ drawitem(struct item *item, int x, int y, int w)
 
 	if (item == sel)
 		drw_setscheme(drw, scheme[SchemeSel]);
-	else if (item->out)
-		drw_setscheme(drw, scheme[SchemeOut]);
 	else
 		drw_setscheme(drw, scheme[SchemeNorm]);
 
 	drw_return = drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
 
 	if (item == sel)
-		drw_setscheme(drw, highlight_scheme[SchemeSel]);
-	else if (item->out)
-		drw_setscheme(drw, highlight_scheme[SchemeOut]);
+		drw_setscheme(drw, scheme[SchemeSelHl]);
 	else
-		drw_setscheme(drw, highlight_scheme[SchemeNorm]);
+		drw_setscheme(drw, scheme[SchemeNormHl]);
 
 	// TODO: overwrite instead of hl for now...
 	drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
@@ -507,8 +499,6 @@ insert:
 			cleanup();
 			exit(0);
 		}
-		if (sel)
-			sel->out = 1;
 		break;
 	case XK_Right:
 	case XK_KP_Right:
@@ -574,7 +564,6 @@ readstdin(void)
 			*p = '\0';
 		if (!(items[i].text = strdup(buf)))
 			die("cannot strdup %u bytes:", strlen(buf) + 1);
-		items[i].out = 0;
 		drw_font_getexts(drw->fonts, buf, strlen(buf), &tmpmax, NULL);
 		if (tmpmax > inputw) {
 			inputw = tmpmax;
@@ -643,12 +632,6 @@ setup(void)
 	/* init appearance */
 	for (j = 0; j < SchemeLast; j++)
 		scheme[j] = drw_scm_create(drw, colors[j], 2);
-	for (j = 0; j < SchemeLast; j++) {
-		const char *highlight[2];
-		highlight[0] = highlight_colors[j];
-		highlight[1] = colors[j][1];
-		highlight_scheme[j] = drw_scm_create(drw, highlight, 2);
-	}
 
 	clip = XInternAtom(dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
@@ -766,18 +749,20 @@ main(int argc, char *argv[])
 			prompt = argv[++i];
 		else if (!strcmp(argv[i], "-fn"))  /* font or font set */
 			fonts[0] = argv[++i];
-		else if (!strcmp(argv[i], "-nb"))  /* normal background color */
+		else if (!strcmp(argv[i], "-nb")) {/* normal background color */
 			colors[SchemeNorm][ColBg] = argv[++i];
-		else if (!strcmp(argv[i], "-nf"))  /* normal foreground color */
+			colors[SchemeNormHl][ColBg] = colors[SchemeNorm][ColBg];
+		} else if (!strcmp(argv[i], "-nf"))  /* normal foreground color */
 			colors[SchemeNorm][ColFg] = argv[++i];
 		else if (!strcmp(argv[i], "-nfh"))  /* normal foreground highlight color */
-			highlight_colors[SchemeNorm] = argv[++i];
-		else if (!strcmp(argv[i], "-sb"))  /* selected background color */
+			colors[SchemeNormHl][ColFg] = argv[++i];
+		else if (!strcmp(argv[i], "-sb")) {/* selected background color */
 			colors[SchemeSel][ColBg] = argv[++i];
-		else if (!strcmp(argv[i], "-sf"))  /* selected foreground color */
+			colors[SchemeSelHl][ColBg] = colors[SchemeSel][ColBg];
+		} else if (!strcmp(argv[i], "-sf"))  /* selected foreground color */
 			colors[SchemeSel][ColFg] = argv[++i];
 		else if (!strcmp(argv[i], "-sfh"))  /* selected foreground highlight color */
-			highlight_colors[SchemeSel] = argv[++i];
+			colors[SchemeSelHl][ColFg] = argv[++i];
 		else if (!strcmp(argv[i], "-w"))   /* embedding window id */
 			embed = argv[++i];
 		else if (!strcmp(argv[i], "-s"))   /* show match scores */
