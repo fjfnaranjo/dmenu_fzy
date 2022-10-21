@@ -52,24 +52,11 @@ choices_t choices;
 
 #include "config.h"
 
-static void
-calcinputw(void)
+static unsigned int
+textw_clamp(const char *str, unsigned int n)
 {
-	char *choice;
-	size_t i, imax = 0;
-	unsigned int tmpmax = 0;
-
-	for(i = 0; i < choices_available(&choices); i++) {
-		choice = (char *) choices_get(&choices, i);
-		drw_font_getexts(drw->fonts, choice, strlen(choice), &tmpmax, NULL);
-		if (tmpmax > inputw) {
-			inputw = tmpmax;
-			imax = i;
-		}
-	}
-	inputw = (choices_available(&choices)) ? TEXTW(choices_get(&choices, imax)) : 0;
-	inputw = MIN(inputw, mw/3);
-	lines = MIN(lines, i);
+	unsigned int w = drw_fontset_getwidth_clamp(drw, str, n) + lrpad;
+	return MIN(w, n);
 }
 
 static void
@@ -77,19 +64,16 @@ calcoffsets(void)
 {
 	int i, n;
 
-	if (inputw == 0)
-		calcinputw();
-
 	if (lines > 0)
 		n = lines * bh;
 	else
 		n = mw - (promptw + inputw + TEXTW("<") + TEXTW(">"));
 	/* calculate which items will begin the next page and previous page */
 	for (i = 0, next = curr; next < choices_available(&choices); next++)
-		if ((i += (lines > 0) ? bh : MIN(TEXTW(choices_get(&choices, next)), n)) > n)
+		if ((i += (lines > 0) ? bh : textw_clamp(choices_get(&choices, next), n)) > n)
 			break;
 	for (i = 0, prev = curr; prev && prev > 0; prev--)
-		if ((i += (lines > 0) ? bh : MIN(TEXTW(choices_get(&choices, prev - 1)), n)) > n)
+		if ((i += (lines > 0) ? bh : textw_clamp(choices_get(&choices, prev - 1), n)) > n)
 			break;
 }
 
@@ -210,7 +194,7 @@ drawmenu(void)
 		}
 		x += w;
 		for(i = curr; i < choices_available(&choices) && i < next; ++i)
-			x = drawchoice(i, x, 0, MIN(TEXTW(choices_get(&choices, i)), mw - x - TEXTW(">")));
+			x = drawchoice(i, x, 0, textw_clamp(choices_get(&choices, i), mw - x - TEXTW(">")));
 		if (next && next < choices_available(&choices)) {
 			w = TEXTW(">");
 			drw_setscheme(drw, scheme[SchemeNorm]);
@@ -398,7 +382,7 @@ keypress(XKeyEvent *ev)
 	switch(ksym) {
 	default:
 insert:
-		if (!iscntrl(*buf))
+		if (!iscntrl((unsigned char)*buf))
 			insert(buf, len);
 		break;
 	case XK_Delete:
@@ -496,9 +480,9 @@ insert:
 	case XK_Tab:
 		if (!sel)
 			return;
-		strncpy(text, choices_get(&choices, sel), sizeof text - 1);
-		text[sizeof text - 1] = '\0';
-		cursor = strlen(text);
+		cursor = strnlen(choices_get(&choices, sel), sizeof text - 1);
+		memcpy(text, choices_get(&choices, sel), cursor);
+		text[cursor] = '\0';
 		match();
 		break;
 	}
@@ -614,7 +598,7 @@ setup(void)
 		/* no focused window is on screen, so use pointer location instead */
 		if (mon < 0 && !area && XQueryPointer(dpy, root, &dw, &dw, &x, &y, &di, &di, &du))
 			for (i = 0; i < n; i++)
-				if (INTERSECT(x, y, 1, 1, info[i]))
+				if (INTERSECT(x, y, 1, 1, info[i]) != 0)
 					break;
 
 		x = info[i].x_org;
@@ -632,6 +616,7 @@ setup(void)
 		mw = wa.width;
 	}
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
+	inputw = mw / 3; /* input width: ~33% of monitor width */
 	match();
 
 	/* create menu window */
@@ -668,10 +653,9 @@ setup(void)
 static void
 usage(void)
 {
-	fputs("usage: dmenu [-bfv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
-	      "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n"
-	      "             [-nfh color] [-sfh color] [-j workers]\n", stderr);
-	exit(1);
+	die("usage: dmenu [-bfv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
+	    "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n"
+	    "             [-nfh color] [-sfh color] [-j workers]");
 }
 
 int

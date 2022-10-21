@@ -14,8 +14,8 @@ jobs:
         with:
           fetch-depth: 0
       - name: Create patch file
-        run: "git diff b7ba1d2d6c4215cccf1fb2dd3191179985824b44..${{ github.ref_name }} -- ':!.gitignore' ':!.github*' > dmenu-fzy-${{ github.ref_name }}-5.1.diff"
+        run: "git diff b7ba1d2d6c4215cccf1fb2dd3191179985824b44..${{ github.ref_name }} -- ':!.gitignore' ':!.github*' > dmenu-fzy-${{ github.ref_name }}-5.2.diff"
       - name: Release file
         uses: softprops/action-gh-release@v1
         with:
-          files: "dmenu-fzy-${{ github.ref_name }}-5.1.diff"
+          files: "dmenu-fzy-${{ github.ref_name }}-5.2.diff"
