@@ -9,13 +9,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout dmenu 5.2
+        run: git clone -b 5.2 --depth=1 https://git.suckless.org/dmenu a
+      - name: Checkout dmenu_fzy
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          path: b
+      - name: Clear files exclusive to dmenu_fzy
+        run: rm -rf a/.git b/.git b/.gitignore b/.github
       - name: Create patch file
-        run: "git diff b7ba1d2d6c4215cccf1fb2dd3191179985824b44..${{ github.ref_name }} -- ':!.gitignore' ':!.github*' > dmenu-fzy-${{ github.ref_name }}-5.2.diff"
+        continue-on-error: true
+        run: diff -rupN a b > dmenu-fzy-${{ github.ref_name }}-5.2.diff
       - name: Release file
         uses: softprops/action-gh-release@v1
         with:
-          files: "dmenu-fzy-${{ github.ref_name }}-5.2.diff"
+          files: dmenu-fzy-${{ github.ref_name }}-5.2.diff
