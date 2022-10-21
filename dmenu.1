@@ -3,7 +3,7 @@
 dmenu \- dynamic menu
 .SH SYNOPSIS
 .B dmenu
-.RB [ \-bfv ]
+.RB [ \-bfvs ]
 .RB [ \-l
 .IR lines ]
 .RB [ \-m
@@ -16,12 +16,18 @@ dmenu \- dynamic menu
 .IR color ]
 .RB [ \-nf
 .IR color ]
+.RB [ \-nfh
+.IR color ]
 .RB [ \-sb
 .IR color ]
 .RB [ \-sf
 .IR color ]
+.RB [ \-sfh
+.IR color ]
 .RB [ \-w
 .IR windowid ]
+.RB [ \-j
+.IR workers ]
 .P
 .BR dmenu_run " ..."
 .SH DESCRIPTION
@@ -66,17 +72,29 @@ and X color names are supported.
 .BI \-nf " color"
 defines the normal foreground color.
 .TP
+.BI \-nfh " color"
+defines the normal foreground highlight color.
+.TP
 .BI \-sb " color"
 defines the selected background color.
 .TP
 .BI \-sf " color"
 defines the selected foreground color.
 .TP
+.BI \-sfh " color"
+defines the selected foreground highlight color.
+.TP
 .B \-v
 prints version information to stdout, then exits.
 .TP
 .BI \-w " windowid"
 embed into windowid.
+.TP
+.B \-s
+show the scores of each match.
+.TP
+.BI \-j " workers"
+use the given number of workers for the match
 .SH USAGE
 dmenu is completely controlled by the keyboard.  Items are selected using the
 arrow keys, page up, page down, home, and end.

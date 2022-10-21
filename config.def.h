@@ -7,11 +7,12 @@ static const char *fonts[] = {
 	"monospace:size=10"
 };
 static const char *prompt      = NULL;      /* -p  option; prompt to the left of input field */
-static const char *colors[SchemeLast][2] = {
+static const char *colors[SchemeLast][3] = {
 	/*     fg         bg       */
 	[SchemeNorm] = { "#bbbbbb", "#222222" },
 	[SchemeSel] = { "#eeeeee", "#005577" },
-	[SchemeOut] = { "#000000", "#00ffff" },
+	[SchemeNormHl] = { "#ffc978", "#222222" },
+	[SchemeSelHl] = { "#ffc978", "#005577" },
 };
 /* -l option; if nonzero, dmenu uses vertical list with given number of lines */
 static unsigned int lines      = 0;
@@ -21,3 +22,6 @@ static unsigned int lines      = 0;
  * for example: " /?\"&[]"
  */
 static const char worddelimiters[] = " ";
+
+static int show_scores = 0;                 /* -s  option; if 1, shows the score of each opt */
+static int workers = 0;                     /* -j  option; NUM of workers or 0 for CPU count */
