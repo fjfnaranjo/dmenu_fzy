@@ -31,20 +31,13 @@
 /* enums */
 enum { SchemeNorm, SchemeSel, SchemeNormHl, SchemeSelHl, SchemeLast }; /* color schemes */
 
-struct item {
-	char *text;
-	struct item *left, *right;
-};
-
 static char text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
-static struct item *items = NULL;
-static struct item *matches, *matchend;
-static struct item *prev, *curr, *next, *sel;
+size_t matchend, prev, curr, next, sel;
 static int mon = -1, screen;
 
 static Atom clip, utf8;
@@ -60,16 +53,23 @@ choices_t choices;
 #include "config.h"
 
 static void
-appenditem(struct item *item, struct item **list, struct item **last)
+calcinputw(void)
 {
-	if (*last)
-		(*last)->right = item;
-	else
-		*list = item;
+	char *choice;
+	size_t i, imax = 0;
+	unsigned int tmpmax = 0;
 
-	item->left = *last;
-	item->right = NULL;
-	*last = item;
+	for(i = 0; i < choices_available(&choices); i++) {
+		choice = (char *) choices_get(&choices, i);
+		drw_font_getexts(drw->fonts, choice, strlen(choice), &tmpmax, NULL);
+		if (tmpmax > inputw) {
+			inputw = tmpmax;
+			imax = i;
+		}
+	}
+	inputw = (choices_available(&choices)) ? TEXTW(choices_get(&choices, imax)) : 0;
+	inputw = MIN(inputw, mw/3);
+	lines = MIN(lines, i);
 }
 
 static void
@@ -77,16 +77,19 @@ calcoffsets(void)
 {
 	int i, n;
 
+	if (inputw == 0)
+		calcinputw();
+
 	if (lines > 0)
 		n = lines * bh;
 	else
 		n = mw - (promptw + inputw + TEXTW("<") + TEXTW(">"));
 	/* calculate which items will begin the next page and previous page */
-	for (i = 0, next = curr; next; next = next->right)
-		if ((i += (lines > 0) ? bh : MIN(TEXTW(next->text), n)) > n)
+	for (i = 0, next = curr; next < choices_available(&choices); next++)
+		if ((i += (lines > 0) ? bh : MIN(TEXTW(choices_get(&choices, next)), n)) > n)
 			break;
-	for (i = 0, prev = curr; prev && prev->left; prev = prev->left)
-		if ((i += (lines > 0) ? bh : MIN(TEXTW(prev->left->text), n)) > n)
+	for (i = 0, prev = curr; prev && prev > 0; prev--)
+		if ((i += (lines > 0) ? bh : MIN(TEXTW(choices_get(&choices, prev - 1)), n)) > n)
 			break;
 }
 
@@ -106,43 +109,27 @@ cleanup(void)
 
 }
 
-static char *
-cistrstr(const char *h, const char *n)
-{
-	size_t i;
-
-	if (!n[0])
-		return (char *)h;
-
-	for (; *h; ++h) {
-		for (i = 0; n[i] && tolower((unsigned char)n[i]) ==
-		            tolower((unsigned char)h[i]); ++i)
-			;
-		if (n[i] == '\0')
-			return (char *)h;
-	}
-	return NULL;
-}
-
 static int
-drawitem(struct item *item, int x, int y, int w)
+drawchoice(size_t n, int x, int y, int w)
 {
 	int drw_return;
 
-	if (item == sel)
+	if (n == sel)
 		drw_setscheme(drw, scheme[SchemeSel]);
 	else
 		drw_setscheme(drw, scheme[SchemeNorm]);
 
-	drw_return = drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
+	drw_return = drw_text(drw, x, y, w, bh, lrpad / 2, choices_get(&choices, n), 0);
 
-	if (item == sel)
+	// TODO: hl only the matched parts
+	/*
+	if (n == sel)
 		drw_setscheme(drw, scheme[SchemeSelHl]);
 	else
 		drw_setscheme(drw, scheme[SchemeNormHl]);
 
-	// TODO: overwrite instead of hl for now...
-	drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
+	drw_text(drw, x, y, w, bh, lrpad / 2, choices_get(&choices, n), 0);
+	*/
 
 	return drw_return;
 }
@@ -151,8 +138,8 @@ static void
 drawmenu(void)
 {
 	unsigned int curpos;
-	struct item *item;
 	int x = 0, y = 0, w;
+	size_t i;
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
@@ -162,7 +149,7 @@ drawmenu(void)
 		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
 	}
 	/* draw input field */
-	w = (lines > 0 || !matches) ? mw - x : inputw;
+	w = (lines > 0 || !choices_available(&choices)) ? mw - x : inputw;
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_text(drw, x, 0, w, bh, lrpad / 2, text, 0);
 
@@ -174,20 +161,20 @@ drawmenu(void)
 
 	if (lines > 0) {
 		/* draw vertical list */
-		for (item = curr; item != next; item = item->right)
-			drawitem(item, x, y += bh, mw - x);
-	} else if (matches) {
+		for(i = curr; i < choices_available(&choices) && i < next; ++i)
+			drawchoice(i, x, y += bh, mw - x);
+	} else if (choices_available(&choices)) {
 		/* draw horizontal list */
 		x += inputw;
 		w = TEXTW("<");
-		if (curr->left) {
+		if (curr > 0) {
 			drw_setscheme(drw, scheme[SchemeNorm]);
 			drw_text(drw, x, 0, w, bh, lrpad / 2, "<", 0);
 		}
 		x += w;
-		for (item = curr; item != next; item = item->right)
-			x = drawitem(item, x, 0, MIN(TEXTW(item->text), mw - x - TEXTW(">")));
-		if (next) {
+		for(i = curr; i < choices_available(&choices) && i < next; ++i)
+			x = drawchoice(i, x, 0, MIN(TEXTW(choices_get(&choices, i)), mw - x - TEXTW(">")));
+		if (next && next < choices_available(&choices)) {
 			w = TEXTW(">");
 			drw_setscheme(drw, scheme[SchemeNorm]);
 			drw_text(drw, mw - w, 0, w, bh, lrpad / 2, ">", 0);
@@ -234,54 +221,9 @@ grabkeyboard(void)
 static void
 match(void)
 {
-	static char **tokv = NULL;
-	static int tokn = 0;
-
-	char buf[sizeof text], *s;
-	int i, tokc = 0;
-	size_t len, textsize;
-	struct item *item, *lprefix, *lsubstr, *prefixend, *substrend;
-
-	strcpy(buf, text);
-	/* separate input text into tokens to be matched individually */
-	for (s = strtok(buf, " "); s; tokv[tokc - 1] = s, s = strtok(NULL, " "))
-		if (++tokc > tokn && !(tokv = realloc(tokv, ++tokn * sizeof *tokv)))
-			die("cannot realloc %u bytes:", tokn * sizeof *tokv);
-	len = tokc ? strlen(tokv[0]) : 0;
-
-	matches = lprefix = lsubstr = matchend = prefixend = substrend = NULL;
-	textsize = strlen(text) + 1;
-	for (item = items; item && item->text; item++) {
-		for (i = 0; i < tokc; i++)
-			if (!cistrstr(item->text, tokv[i]))
-				break;
-		if (i != tokc) /* not all tokens match */
-			continue;
-		/* exact matches go first, then prefixes, then substrings */
-		if (!tokc || !strncasecmp(text, item->text, textsize))
-			appenditem(item, &matches, &matchend);
-		else if (!strncasecmp(tokv[0], item->text, len))
-			appenditem(item, &lprefix, &prefixend);
-		else
-			appenditem(item, &lsubstr, &substrend);
-	}
-	if (lprefix) {
-		if (matches) {
-			matchend->right = lprefix;
-			lprefix->left = matchend;
-		} else
-			matches = lprefix;
-		matchend = prefixend;
-	}
-	if (lsubstr) {
-		if (matches) {
-			matchend->right = lsubstr;
-			lsubstr->left = matchend;
-		} else
-			matches = lsubstr;
-		matchend = substrend;
-	}
-	curr = sel = matches;
+	choices_search(&choices, text);
+	matchend = choices_available(&choices) ? choices_available(&choices) - 1 : 0;
+	curr = sel = 0;
 	calcoffsets();
 }
 
@@ -439,13 +381,13 @@ insert:
 			cursor = strlen(text);
 			break;
 		}
-		if (next) {
+		if (next && next < choices_available(&choices)) {
 			/* jump to end of list and position items in reverse */
 			curr = matchend;
 			calcoffsets();
 			curr = prev;
 			calcoffsets();
-			while (next && (curr = curr->right))
+			while ((next && next < choices_available(&choices)) && ((curr += 1) < choices_available(&choices)))
 				calcoffsets();
 		}
 		sel = matchend;
@@ -455,16 +397,16 @@ insert:
 		exit(1);
 	case XK_Home:
 	case XK_KP_Home:
-		if (sel == matches) {
+		if (sel == 0) {
 			cursor = 0;
 			break;
 		}
-		sel = curr = matches;
+		sel = curr = 0;
 		calcoffsets();
 		break;
 	case XK_Left:
 	case XK_KP_Left:
-		if (cursor > 0 && (!sel || !sel->left || lines > 0)) {
+		if (cursor > 0 && (sel == 0 || lines > 0)) {
 			cursor = nextrune(-1);
 			break;
 		}
@@ -473,28 +415,26 @@ insert:
 		/* fallthrough */
 	case XK_Up:
 	case XK_KP_Up:
-		if (sel && sel->left && (sel = sel->left)->right == curr) {
+		if (sel > 0 && (sel = sel - 1) + 1 == curr) {
 			curr = prev;
 			calcoffsets();
 		}
 		break;
 	case XK_Next:
 	case XK_KP_Next:
-		if (!next)
+		if (!next || next >= choices_available(&choices))
 			return;
 		sel = curr = next;
 		calcoffsets();
 		break;
 	case XK_Prior:
 	case XK_KP_Prior:
-		if (!prev)
-			return;
 		sel = curr = prev;
 		calcoffsets();
 		break;
 	case XK_Return:
 	case XK_KP_Enter:
-		puts((sel && !(ev->state & ShiftMask)) ? sel->text : text);
+		puts((choices_available(&choices) && !(ev->state & ShiftMask)) ? choices_get(&choices, sel) : text);
 		if (!(ev->state & ControlMask)) {
 			cleanup();
 			exit(0);
@@ -511,7 +451,7 @@ insert:
 		/* fallthrough */
 	case XK_Down:
 	case XK_KP_Down:
-		if (sel && sel->right && (sel = sel->right) == next) {
+		if ((sel < choices_available(&choices) - 1) && (++sel == next)) {
 			curr = next;
 			calcoffsets();
 		}
@@ -519,7 +459,7 @@ insert:
 	case XK_Tab:
 		if (!sel)
 			return;
-		strncpy(text, sel->text, sizeof text - 1);
+		strncpy(text, choices_get(&choices, sel), sizeof text - 1);
 		text[sizeof text - 1] = '\0';
 		cursor = strlen(text);
 		match();
@@ -546,34 +486,6 @@ paste(void)
 		XFree(p);
 	}
 	drawmenu();
-}
-
-static void
-readstdin(void)
-{
-	char buf[sizeof text], *p;
-	size_t i, imax = 0, size = 0;
-	unsigned int tmpmax = 0;
-
-	/* read each line from stdin and add it to the item list */
-	for (i = 0; fgets(buf, sizeof buf, stdin); i++) {
-		if (i + 1 >= size / sizeof *items)
-			if (!(items = realloc(items, (size += BUFSIZ))))
-				die("cannot realloc %u bytes:", size);
-		if ((p = strchr(buf, '\n')))
-			*p = '\0';
-		if (!(items[i].text = strdup(buf)))
-			die("cannot strdup %u bytes:", strlen(buf) + 1);
-		drw_font_getexts(drw->fonts, buf, strlen(buf), &tmpmax, NULL);
-		if (tmpmax > inputw) {
-			inputw = tmpmax;
-			imax = i;
-		}
-	}
-	if (items)
-		items[i].text = NULL;
-	inputw = items ? TEXTW(items[imax].text) : 0;
-	lines = MIN(lines, i);
 }
 
 static void
@@ -639,6 +551,8 @@ setup(void)
 	/* calculate menu geometry */
 	bh = drw->fonts->h + 2;
 	lines = MAX(lines, 0);
+	if (lines > 0)
+		lines = MIN(lines, choices.size);
 	mh = (lines + 1) * bh;
 #ifdef XINERAMA
 	i = 0;
@@ -681,7 +595,6 @@ setup(void)
 		mw = wa.width;
 	}
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
-	inputw = MIN(inputw, mw/3);
 	match();
 
 	/* create menu window */
@@ -797,10 +710,8 @@ main(int argc, char *argv[])
 
 	if (fast && !isatty(0)) {
 		grabkeyboard();
-		readstdin();
 		choices_fread(&choices, stdin);
 	} else {
-		readstdin();
 		choices_fread(&choices, stdin);
 		grabkeyboard();
 	}
