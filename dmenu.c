@@ -669,7 +669,9 @@ static void
 usage(void)
 {
 	fputs("usage: dmenu [-bfiv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
-	      "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n", stderr);
+	fputs("usage: dmenu [-bfv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
+	      "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n"
+	      "             [-nfh color] [-sfh color] [-j workers]\n", stderr);
 	exit(1);
 }
 
@@ -715,8 +717,6 @@ main(int argc, char *argv[])
 			colors[SchemeSelHl][ColFg] = argv[++i];
 		else if (!strcmp(argv[i], "-w"))   /* embedding window id */
 			embed = argv[++i];
-		else if (!strcmp(argv[i], "-s"))   /* show match scores */
-			show_scores = 1;
 		else if (!strcmp(argv[i], "-j"))   /* number of workers */
 			workers = atoi(argv[++i]);
 		else
