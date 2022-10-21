@@ -112,26 +112,63 @@ cleanup(void)
 static int
 drawchoice(size_t n, int x, int y, int w)
 {
-	int drw_return;
+	int choice_x;
+	const char *choice = choices_get(&choices, n);
+	size_t i, p, positions[strlen(choice)], hl_start = -1, hl_end = -1;
+	char segment[strlen(choice) + 1];
+	const char *segment_ptr = segment;
+	int nohl = (n == sel) ? SchemeSel : SchemeNorm,
+		hl = (n == sel) ? SchemeSelHl: SchemeNormHl;
 
-	if (n == sel)
-		drw_setscheme(drw, scheme[SchemeSel]);
-	else
-		drw_setscheme(drw, scheme[SchemeNorm]);
+	for (i = 0; i < strlen(choice) + 1; i++)
+		positions[i] = -1;
+	match_positions(text, choice, &positions[0]);
 
-	drw_return = drw_text(drw, x, y, w, bh, lrpad / 2, choices_get(&choices, n), 0);
+	drw_setscheme(drw, scheme[nohl]);
+	drw_rect(drw, x, y, lrpad / 2, bh, 1, 1);
+	choice_x = lrpad / 2;
 
-	// TODO: hl only the matched parts
-	/*
-	if (n == sel)
-		drw_setscheme(drw, scheme[SchemeSelHl]);
-	else
-		drw_setscheme(drw, scheme[SchemeNormHl]);
+	for (i = 0, p = 0; choice[i] != '\0'; i++) {
+		if (positions[p] == i && hl_start == -1) {
+			p++;
+			hl_start = i;
+			segment[0] = '\0';
+			strncat(segment, &choice[hl_end + 1], i - (hl_end + 1));
+			drw_setscheme(drw, scheme[nohl]);
+			drw_text(drw, x + choice_x, y, drw_fontset_getwidth(drw, segment_ptr), bh, 0, segment_ptr, 0);
+			choice_x += drw_fontset_getwidth(drw, segment_ptr);
+		} else if (positions[p] != i && hl_start != -1) {
+			hl_end = i - 1;
+			segment[0] = '\0';
+			strncat(segment, &choice[hl_start], (hl_end - hl_start) + 1);
+			drw_setscheme(drw, scheme[hl]);
+			drw_text(drw, x + choice_x, y, drw_fontset_getwidth(drw, segment_ptr), bh, 0, segment_ptr, 0);
+			choice_x += drw_fontset_getwidth(drw, segment_ptr);
+			hl_start = -1;
+		} else if (positions[p] == i && hl_start != -1) {
+			p++;
+		}
+	}
+	if (hl_start != -1) {
+		hl_end = i - 1;
+		segment[0] = '\0';
+		strncat(segment, &choice[hl_start], (hl_end - hl_start) + 1);
+		drw_setscheme(drw, scheme[hl]);
+		drw_text(drw, x + choice_x, y, drw_fontset_getwidth(drw, segment_ptr), bh, 0, segment_ptr, 0);
+		choice_x += drw_fontset_getwidth(drw, segment_ptr);
+	} else {
+		segment[0] = '\0';
+		strncat(segment, &choice[hl_end + 1], i - (hl_end + 1));
+		drw_setscheme(drw, scheme[nohl]);
+		drw_text(drw, x + choice_x, y, drw_fontset_getwidth(drw, segment_ptr), bh, 0, segment_ptr, 0);
+		choice_x += drw_fontset_getwidth(drw, segment_ptr);
+	}
 
-	drw_text(drw, x, y, w, bh, lrpad / 2, choices_get(&choices, n), 0);
-	*/
+	drw_setscheme(drw, scheme[nohl]);
+	drw_rect(drw, x + choice_x, y, lrpad / 2, bh, 1, 1);
+	choice_x += lrpad / 2;
 
-	return drw_return;
+	return x + choice_x;
 }
 
 static void
