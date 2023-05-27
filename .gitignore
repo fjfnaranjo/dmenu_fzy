@@ -9,9 +9,3 @@
 # fzy
 /fzy/config.h
 /fzy/fzy
-
-# IDEs
-/.cproject
-/.project
-/.settings
-/.dbeaver
